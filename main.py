@@ -60,6 +60,7 @@ def get_video_content(BV_ID, spm_id_from, vd_source):
 
 # 数据保存
 def save(title, audio_url, video_url):
+    print("开始下载"+title)
     audio_content = get_resopnse(audio_url).content
     video_content = get_resopnse(video_url).content
     fp = open(title + '.mp3', mode='wb')
@@ -72,9 +73,25 @@ def save(title, audio_url, video_url):
 # 音视频合成
 def merge_data(video_name):
     '''数据合并'''
-    cmd = rf"ffmpeg -i {video_name}.mp4 -i {video_name}.mp3 -acodec copy -vcodec copy ./out/{video_name}out.mp4"
-    subprocess.run(cmd, shell=True)
+    output_dir = './out/'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
+    cmd = rf"ffmpeg -i {video_name}.mp4 -i {video_name}.mp3 -acodec copy -vcodec copy {output_dir}{video_name}out.mp4"
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8')
+
+    if result.returncode == 0:  # 如果命令执行成功
+        print(f"{video_name} 合并完成")
+        # 删除原始的 .mp4 和 .mp3 文件
+        for ext in ('.mp4', '.mp3'):
+            file_path = f"{video_name}{ext}"
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"已删除: {file_path}")
+            else:
+                print(f"文件不存在: {file_path}")
+    else:
+        print("合并过程中发生错误:", result.stderr)
 
 def main(BV_ID, spm_id_from, vd_source):
     html_url = f'https://www.bilibili.com/video/{BV_ID}/?spm_id_from={spm_id_from}&vd_source={vd_source}'
