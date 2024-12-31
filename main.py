@@ -5,78 +5,79 @@ import json
 import subprocess
 from bs4 import BeautifulSoup
 
-
+# 检查目录是否存在，用于存储下载的视频；如果不存在则创建目录
 if not os.path.exists('./b_video'):
     os.mkdir('./b_video')
+
+# HTTP 请求头，包括 Cookie 和 User-Agent，referer标识表示发起当前请求的来源页面的 URL，用于伪装为浏览器访问
 headers = {
-    # 获取最高清1080p数据,加入cookie个人信息
-    'Cookie': 'buvid3=E0CC3B70-C034-5F99-108B-417EAAB6D58D72208infoc; b_nut=1713876972; _uuid=787A410510-29D6-3E12-CA3F-B34193EB71D473899infoc; buvid4=0E1C561F-6DF8-B44C-DF45-45C180B3AEF473881-024042312-A0qBauS20OKwBtcJZSUxzWEO4CNtd2qdxh3XvdPkMx%2FKI6%2BT71OvmVbVmN3eRp3P; enable_web_push=DISABLE; FEED_LIVE_VERSION=V_WATCHLATER_PIP_WINDOW3; rpdid=0zbfAHUo63|11buTGIeY|2D|3w1RZfHa; header_theme_version=CLOSE; DedeUserID=442663406; DedeUserID__ckMd5=30156e8f6d52e5c9; buvid_fp_plain=undefined; LIVE_BUVID=AUTO4017241252399556; SESSDATA=3cbf9059%2C1744699099%2Cf005d%2Aa1CjDXidLlhcVQXR2HJMsuiJC3VkrBakxgwqwJxoUEyxO4niemqZCfdbUOhexvScrim8MSVkdNM05WSng4Vmtfd1M2c19SalE3a25zYkp5eU1xOEhKZUU4a2w5Q3FLUlJUSU5ya1Q4VHE5Y1p6bmVzMElNazFndnhILWRZSW1leGFSaE12THZXbVdnIIEC; bili_jct=4c281368a7f9090515b851a60880ccc1; home_feed_column=5; browser_resolution=1545-825; blackside_state=0; CURRENT_BLACKGAP=0; fingerprint=adcfd40cacc10584fc9742a0bf252c85; buvid_fp=adcfd40cacc10584fc9742a0bf252c85; CURRENT_QUALITY=80; CURRENT_FNVAL=4048; bp_t_offset_442663406=1012124732817932288; b_lsid=F106454FB_193F62BDD10; sid=5914pnm3; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzUyNjMyOTAsImlhdCI6MTczNTAwNDAzMCwicGx0IjotMX0.le6Ukbm15K5jiL1tPu2zn8g0SFALGNzzDXoL-2cqcho; bili_ticket_expires=1735263230; bsource=search_google; bmg_af_switch=1; bmg_src_def_domain=i2.hdslb.com'
-    ,
-    'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"
-    ,
+    # 包含 Cookie 信息，用于访问需要登录的资源
+    'Cookie': '...',
+    'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76",
     'referer': 'https://www.bilibili.com/?spm_id_from=333.1365.0.0'
 }
 
-
-def get_resopnse(html_url):
+# 获取指定 URL 的响应数据
+def get_response(html_url):
     response = requests.get(url=html_url, headers=headers)
     return response
 
-
 # 获取视频标题
-def get_viedeo_info(html_url):
-    resopnse = get_resopnse(html_url)
-    soup = BeautifulSoup(resopnse.text, 'html.parser')
-    title_tag = soup.find('h1', class_='video-title')
+def get_video_info(html_url):
+    response = get_response(html_url)  # 获取 HTML 响应
+    soup = BeautifulSoup(response.text, 'html.parser')  # 使用 BeautifulSoup 解析 HTML
+    title_tag = soup.find('h1', class_='video-title')  # 查找标题标签
 
     if title_tag:
-        title = title_tag.get('title', '').replace(' ', '')
+        title = title_tag.get('title', '').replace(' ', '')  # 获取标题并去掉空格
         video_info = [title]
         return video_info
     else:
         print("未能找到视频标题")
         return None
 
-
-# 获取视频的视频和音频的链接
+# 获取视频和音频的链接
 def get_video_content(BV_ID, spm_id_from, vd_source):
-    index_url = 'https://www.bilibili.com/video/' + BV_ID + '/'
+    index_url = 'https://www.bilibili.com/video/' + BV_ID + '/'  # 视频页面 URL
     data = {
         'spm_id_from': spm_id_from,
         'vd_source': vd_source
     }
     page_text = requests.get(url=index_url, params=data, headers=headers).text
-    # window.__playinfo__ =({.*?})
-    # (.*?只能匹配字符不能匹配符号,例如'{}')
+    # 使用正则表达式提取视频和音频的 JSON 数据
     ex = r'window\.__playinfo__=({.*?})\s*</script>'
     json_data = re.findall(ex, page_text)[0]
-    # json字符串转换为python对象
+    # 将 JSON 字符串转换为 Python 对象
     data = json.loads(json_data)
     audio_url = data['data']['dash']['audio'][0]['baseUrl']
     video_url = data['data']['dash']['video'][0]['baseUrl']
     video_content = [audio_url, video_url]
     return video_content
 
-
-# 数据保存
+# 保存视频和音频数据到本地
 def save(title, audio_url, video_url):
-    print("开始下载"+title)
-    audio_content = get_resopnse(audio_url).content
-    video_content = get_resopnse(video_url).content
-    fp = open(title + '.mp3', mode='wb')
-    fp.write(audio_content)
-    fp = open(title + '.mp4', mode='ab')
-    fp.write(video_content)
+    print("开始下载" + title)
+    audio_content = get_response(audio_url).content  # 获取音频数据
+    video_content = get_response(video_url).content  # 获取视频数据
+
+    # 保存音频文件
+    with open(title + '.mp3', mode='wb') as fp:
+        fp.write(audio_content)
+
+    # 保存视频文件
+    with open(title + '.mp4', mode='ab') as fp:
+        fp.write(video_content)
+
     print(title, '保存完成')
 
-
-# 音视频合成
+# 合并音频和视频文件
 def merge_data(video_name):
     '''数据合并'''
     output_dir = './out/'
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir)  # 创建输出目录
 
+    # 使用 ffmpeg 命令合并音频和视频
     cmd = rf"ffmpeg -i {video_name}.mp4 -i {video_name}.mp3 -acodec copy -vcodec copy {output_dir}{video_name}out.mp4"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8')
 
@@ -93,20 +94,26 @@ def merge_data(video_name):
     else:
         print("合并过程中发生错误:", result.stderr)
 
+# 主程序入口
 def main(BV_ID, spm_id_from, vd_source):
     html_url = f'https://www.bilibili.com/video/{BV_ID}/?spm_id_from={spm_id_from}&vd_source={vd_source}'
-    video_info = get_viedeo_info(html_url)
-    video_content = get_video_content(BV_ID, spm_id_from, vd_source)
-    save(video_info[0], video_content[0], video_content[1])
-    merge_data(video_info[0])
+    video_info = get_video_info(html_url)  # 获取视频信息
+    if video_info is None:
+        return
 
+    video_content = get_video_content(BV_ID, spm_id_from, vd_source)  # 获取视频内容链接
+    save(video_info[0], video_content[0], video_content[1])  # 保存音频和视频
+    merge_data(video_info[0])  # 合并音频和视频
 
+# 获取用户输入的 Bilibili 视频 URL
 b_url = input('输入爬取视频的网址:')
-# b_url='https://www.bilibili.com/video/BV1et421a7E1/?spm_id_from=333.337.search-card.all.click&vd_source=77c296188837a388ccd6343ff122de09'
-# 取出参数,BV_ID,spm,_id_from,vd_source
+
+# 从 URL 中提取参数 BV_ID、spm_id_from 和 vd_source
 list = b_url.split('/')
 BV_ID = list[4]
 new_list = list[5].split('=')
 spm_id_from = new_list[1].split('&')[0]
 vd_source = new_list[-1]
+
+# 调用主函数
 main(BV_ID, spm_id_from, vd_source)
